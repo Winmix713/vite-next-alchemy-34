@@ -1,14 +1,19 @@
 
-import { RoutingAnalysis } from '@/types/analyzer';
+import { RoutingAnalysis, NextJsRoute } from '@/types/analyzer';
 import { analyzeNextJsRoutes } from '../routeConverter';
 
 export async function analyzeRouting(files: File[]): Promise<RoutingAnalysis> {
-  const routes = analyzeNextJsRoutes(files).map(route => ({
+  const nextJsRoutes = analyzeNextJsRoutes(files);
+  
+  // Convert to our internal NextJsRoute type
+  const routes: NextJsRoute[] = nextJsRoutes.map(route => ({
     path: route.path,
+    component: route.component,
     isPage: true, // Default to true for Next.js routes
     isDynamic: route.isDynamic,
+    hasParams: route.hasParams,
     params: route.params,
-    layout: false,
+    layout: !!route.layout,
     hasErrorBoundary: false,
     pageComponent: route.component
   }));

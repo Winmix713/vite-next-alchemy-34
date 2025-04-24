@@ -20,7 +20,7 @@ const ConversionDashboard = ({
   onStartConversion: parentOnStartConversion,
   isConverting: parentIsConverting 
 }: ConversionDashboardProps) => {
-  const { state, dispatch } = useConversion();
+  const conversionContext = useConversion();
   const [options, setOptions] = useState<ConversionOptionsType>({
     useReactRouter: true,
     convertApiRoutes: true,
@@ -42,10 +42,12 @@ const ConversionDashboard = ({
       const newOptions = { ...prev, [option]: !prev[option] };
       
       // Update the context when options change
-      dispatch({ 
-        type: "SET_CONVERSION_OPTIONS", 
-        payload: newOptions 
-      });
+      if (conversionContext?.dispatch) {
+        conversionContext.dispatch({ 
+          type: "SET_CONVERSION_OPTIONS", 
+          payload: newOptions 
+        });
+      }
       
       return newOptions;
     });
@@ -62,8 +64,10 @@ const ConversionDashboard = ({
       parentOnStartConversion();
       
       // Update context state
-      dispatch({ type: "SET_IS_CONVERTING", payload: true });
-      dispatch({ type: "SET_CONVERSION_OPTIONS", payload: options });
+      if (conversionContext?.dispatch) {
+        conversionContext.dispatch({ type: "SET_IS_CONVERTING", payload: true });
+        conversionContext.dispatch({ type: "SET_CONVERSION_OPTIONS", payload: options });
+      }
       
       toast.info("Starting Next.js to Vite conversion process...");
       
@@ -79,10 +83,13 @@ const ConversionDashboard = ({
         executor.setProgressCallback((progress, message) => {
           setProgress(progress);
           setProgressMessage(message);
-          dispatch({ 
-            type: "SET_CONVERSION_PROGRESS", 
-            payload: { progress, message } 
-          });
+          
+          if (conversionContext?.dispatch) {
+            conversionContext.dispatch({ 
+              type: "SET_CONVERSION_PROGRESS", 
+              payload: { progress, message } 
+            });
+          }
         });
         
         // Execute conversion process
@@ -91,36 +98,49 @@ const ConversionDashboard = ({
         // Handle conversion result
         if (result.success) {
           toast.success("Conversion completed successfully!");
-          dispatch({ 
-            type: "SET_CONVERSION_RESULT", 
-            payload: { success: true, result } 
-          });
+          
+          if (conversionContext?.dispatch) {
+            conversionContext.dispatch({ 
+              type: "SET_CONVERSION_RESULT", 
+              payload: { success: true, result } 
+            });
+          }
         } else {
           toast.error(`Conversion completed with ${result.errors.length} errors.`);
-          dispatch({ 
-            type: "SET_CONVERSION_RESULT", 
-            payload: { success: false, result } 
-          });
+          
+          if (conversionContext?.dispatch) {
+            conversionContext.dispatch({ 
+              type: "SET_CONVERSION_RESULT", 
+              payload: { success: false, result } 
+            });
+          }
         }
       } else {
         toast.error("Project data is missing. Please upload a valid Next.js project.");
       }
     } catch (error) {
       toast.error(`Error during conversion: ${error instanceof Error ? error.message : String(error)}`);
-      dispatch({ 
-        type: "SET_CONVERSION_ERROR", 
-        payload: error instanceof Error ? error.message : String(error)
-      });
+      
+      if (conversionContext?.dispatch) {
+        conversionContext.dispatch({ 
+          type: "SET_CONVERSION_ERROR", 
+          payload: error instanceof Error ? error.message : String(error)
+        });
+      }
     } finally {
       setIsConverting(false);
       // Update context state
-      dispatch({ type: "SET_IS_CONVERTING", payload: false });
+      if (conversionContext?.dispatch) {
+        conversionContext.dispatch({ type: "SET_IS_CONVERTING", payload: false });
+      }
     }
   };
 
   // When component mounts, update the context with initial options
   useEffect(() => {
-    dispatch({ type: "SET_CONVERSION_OPTIONS", payload: options });
+    if (conversionContext?.dispatch) {
+      conversionContext.dispatch({ type: "SET_CONVERSION_OPTIONS", payload: options });
+    }
   }, []);
 
   return (

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import { analyzeNextJsRoutes, convertToReactRoutes } from "@/services/routeConverter";
@@ -7,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SystemAnalysisResult } from "@/types/analyzer";
 import { NextJsRoute } from "@/types/route";
+import { RoutingAnalysis } from "@/types/analyzer";
 
 interface RouteAnalyzerProps {
   files: File[];
@@ -24,20 +26,47 @@ const RouteAnalyzer = ({ files, onRoutesAnalyzed, systemAnalysis }: RouteAnalyze
     if (files.length > 0) {
       if (systemAnalysis?.routing) {
         setAnalyzedRoutes(systemAnalysis.routing.routes);
-        const reactRoutes = convertToReactRoutes(systemAnalysis.routing.routes);
+        
+        // Convert the routes from systemAnalysis to the format needed by convertToReactRoutes
+        const routesForConversion = systemAnalysis.routing.routes.map(r => ({
+          path: r.path,
+          component: r.component || r.pageComponent || '',
+          isDynamic: r.isDynamic,
+          hasParams: r.hasParams,
+          params: r.params,
+          layout: typeof r.layout === 'string' ? r.layout : undefined
+        }));
+        
+        const reactRoutes = convertToReactRoutes(routesForConversion);
         setConvertedRoutes(reactRoutes);
         calculateComplexityAndWarnings(systemAnalysis.routing);
         onRoutesAnalyzed(systemAnalysis.routing.routes);
       } else {
-        const routes = analyzeNextJsRoutes(files);
-        const reactRoutes = convertToReactRoutes(routes);
+        const nextJsRoutes = analyzeNextJsRoutes(files);
+        const reactRoutes = convertToReactRoutes(nextJsRoutes);
+        
+        // Convert to our internal NextJsRoute format
+        const routes: NextJsRoute[] = nextJsRoutes.map(r => ({
+          path: r.path,
+          component: r.component,
+          isDynamic: r.isDynamic,
+          hasParams: r.hasParams,
+          isPage: true,
+          params: r.params,
+          layout: !!r.layout,
+          pageComponent: r.component
+        }));
+        
         setAnalyzedRoutes(routes);
         setConvertedRoutes(reactRoutes);
-        calculateComplexityAndWarnings({
+        
+        const routingAnalysis: RoutingAnalysis = {
           routes,
           dynamicRoutes: routes.filter(r => r.isDynamic).length,
           complexRoutes: routes.filter(r => r.path.includes('[') && (r.path.includes('...') || r.path.split('/').filter(p => p.includes('[')).length > 1)).length
-        });
+        };
+        
+        calculateComplexityAndWarnings(routingAnalysis);
         onRoutesAnalyzed(routes);
       }
     }

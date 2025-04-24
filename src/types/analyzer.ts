@@ -1,3 +1,4 @@
+
 export interface AnalyzerComponent {
   name: string;
   status: 'ok' | 'warning' | 'error';
@@ -35,7 +36,6 @@ export interface DependencyAnalysis {
   };
 }
 
-import { NextJsRoute } from './route';
 export interface RoutingAnalysis {
   routes: NextJsRoute[];
   dynamicRoutes: number;
@@ -66,3 +66,6 @@ export interface SystemAnalysisResult {
   readiness: ConversionReadiness;
   validation: ValidationResult;
 }
+
+// Import the NextJsRoute from the route file
+import { NextJsRoute } from './route';

@@ -1,3 +1,4 @@
+
 import { ValidationResult, SystemAnalysisResult, AnalyzerComponent } from '@/types/analyzer';
 import { analyzeNextJsRoutes } from '../routeConverter';
 import { transformCode } from '../codeTransformer';
@@ -5,6 +6,7 @@ import { analyzeMiddlewareFiles } from '../middlewareTransformer';
 import { analyzeCodebase, analyzeComponents } from './codebaseAnalyzer';
 import { analyzeDependencies } from './dependencyAnalyzer';
 import { calculateConversionReadiness } from './readinessAnalyzer';
+import { NextJsRoute } from '@/types/route';
 
 export async function validateConversionSystem(): Promise<ValidationResult> {
   const components: AnalyzerComponent[] = [
@@ -65,7 +67,19 @@ export async function performSystemAnalysis(files: File[], packageJson: any): Pr
     const codebase = await analyzeCodebase(files);
     const components = await analyzeComponents(files);
     const dependencies = await analyzeDependencies(packageJson);
-    const routes = analyzeNextJsRoutes(files);
+    
+    // Get NextJS routes and convert them to our type
+    const nextJsRoutes = analyzeNextJsRoutes(files);
+    const routes: NextJsRoute[] = nextJsRoutes.map(route => ({
+      path: route.path,
+      component: route.component,
+      isPage: true,
+      isDynamic: route.isDynamic,
+      hasParams: route.hasParams,
+      params: route.params,
+      layout: !!route.layout,
+      pageComponent: route.component
+    }));
     
     const routing = {
       routes,

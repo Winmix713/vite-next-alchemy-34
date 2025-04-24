@@ -6,9 +6,12 @@ export interface NextJsRoute {
   hasParams: boolean;
   params?: string[];
   isPage: boolean;
-  layout?: boolean;
+  layout?: boolean | string;
   hasErrorBoundary?: boolean;
   pageComponent?: string;
+  isIndex?: boolean;
+  isOptionalCatchAll?: boolean;
+  isCatchAll?: boolean;
 }
 
 export interface RouteAnalysis {
