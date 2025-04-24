@@ -1,9 +1,13 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+import { ConversionOptions, ConversionResult } from '@/types/conversion';
 
-type ConversionState = {
+export type ConversionState = {
   originalCode: string;
   convertedCode: string;
+  isConverting: boolean;
+  progress: number;
+  progressMessage: string;
   conversionOptions: {
     useReactRouter: boolean;
     convertApiRoutes: boolean;
@@ -11,19 +15,30 @@ type ConversionState = {
     replaceComponents: boolean;
     updateDependencies: boolean;
     preserveTypeScript: boolean;
+    handleMiddleware: boolean;
   };
 };
 
+export type ConversionAction =
+  | { type: 'UPDATE_ORIGINAL_CODE'; payload: string }
+  | { type: 'UPDATE_CONVERTED_CODE'; payload: string }
+  | { type: 'SET_IS_CONVERTING'; payload: boolean }
+  | { type: 'SET_CONVERSION_OPTIONS'; payload: ConversionState['conversionOptions'] }
+  | { type: 'SET_CONVERSION_PROGRESS'; payload: { progress: number; message: string } }
+  | { type: 'SET_CONVERSION_RESULT'; payload: { success: boolean; result: ConversionResult } }
+  | { type: 'SET_CONVERSION_ERROR'; payload: string };
+
 type ConversionContextType = {
   state: ConversionState;
-  updateOriginalCode: (code: string) => void;
-  updateConvertedCode: (code: string) => void;
-  toggleOption: (option: keyof ConversionState['conversionOptions']) => void;
+  dispatch: React.Dispatch<ConversionAction>;
 };
 
 const defaultState: ConversionState = {
   originalCode: '',
   convertedCode: '',
+  isConverting: false,
+  progress: 0,
+  progressMessage: '',
   conversionOptions: {
     useReactRouter: true,
     convertApiRoutes: true,
@@ -31,34 +46,50 @@ const defaultState: ConversionState = {
     replaceComponents: true,
     updateDependencies: true,
     preserveTypeScript: true,
+    handleMiddleware: true,
   },
+};
+
+const conversionReducer = (state: ConversionState, action: ConversionAction): ConversionState => {
+  switch (action.type) {
+    case 'UPDATE_ORIGINAL_CODE':
+      return { ...state, originalCode: action.payload };
+    case 'UPDATE_CONVERTED_CODE':
+      return { ...state, convertedCode: action.payload };
+    case 'SET_IS_CONVERTING':
+      return { ...state, isConverting: action.payload };
+    case 'SET_CONVERSION_OPTIONS':
+      return { ...state, conversionOptions: action.payload };
+    case 'SET_CONVERSION_PROGRESS':
+      return {
+        ...state,
+        progress: action.payload.progress,
+        progressMessage: action.payload.message,
+      };
+    case 'SET_CONVERSION_RESULT':
+      return {
+        ...state,
+        isConverting: false,
+        convertedCode: action.payload.result.transformedFiles[0]?.content || '',
+      };
+    case 'SET_CONVERSION_ERROR':
+      return {
+        ...state,
+        isConverting: false,
+        progressMessage: `Error: ${action.payload}`,
+      };
+    default:
+      return state;
+  }
 };
 
 const ConversionContext = createContext<ConversionContextType | undefined>(undefined);
 
 export const ConversionProvider = ({ children }: { children: ReactNode }) => {
-  const [state, setState] = useState<ConversionState>(defaultState);
-
-  const updateOriginalCode = (code: string) => {
-    setState(prevState => ({ ...prevState, originalCode: code }));
-  };
-
-  const updateConvertedCode = (code: string) => {
-    setState(prevState => ({ ...prevState, convertedCode: code }));
-  };
-
-  const toggleOption = (option: keyof ConversionState['conversionOptions']) => {
-    setState(prevState => ({
-      ...prevState,
-      conversionOptions: {
-        ...prevState.conversionOptions,
-        [option]: !prevState.conversionOptions[option],
-      },
-    }));
-  };
+  const [state, dispatch] = useReducer(conversionReducer, defaultState);
 
   return (
-    <ConversionContext.Provider value={{ state, updateOriginalCode, updateConvertedCode, toggleOption }}>
+    <ConversionContext.Provider value={{ state, dispatch }}>
       {children}
     </ConversionContext.Provider>
   );
@@ -71,3 +102,4 @@ export const useConversion = () => {
   }
   return context;
 };
+

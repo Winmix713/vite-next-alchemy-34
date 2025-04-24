@@ -1,3 +1,4 @@
+import { NextJsRoute } from './route';
 
 export interface AnalyzerComponent {
   name: string;
@@ -67,5 +68,4 @@ export interface SystemAnalysisResult {
   validation: ValidationResult;
 }
 
-// Import the NextJsRoute from the route file
-import { NextJsRoute } from './route';
+export { NextJsRoute };
