@@ -1,4 +1,3 @@
-
 export interface AnalyzerComponent {
   name: string;
   status: 'ok' | 'warning' | 'error';
@@ -36,16 +35,9 @@ export interface DependencyAnalysis {
   };
 }
 
+import { NextJsRoute } from './route';
 export interface RoutingAnalysis {
-  routes: {
-    path: string;
-    isPage: boolean;
-    isDynamic: boolean;
-    params?: string[];
-    layout?: boolean;
-    hasErrorBoundary?: boolean;
-    pageComponent?: string;
-  }[];
+  routes: NextJsRoute[];
   dynamicRoutes: number;
   complexRoutes: number;
 }

@@ -1,12 +1,12 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
-import { analyzeNextJsRoutes, convertToReactRoutes, NextJsRoute } from "@/services/routeConverter";
+import { analyzeNextJsRoutes, convertToReactRoutes } from "@/services/routeConverter";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ChevronRight, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { SystemAnalysisResult, RoutingAnalysis } from "@/types/analyzer";
+import { SystemAnalysisResult } from "@/types/analyzer";
+import { NextJsRoute } from "@/types/route";
 
 interface RouteAnalyzerProps {
   files: File[];
@@ -22,29 +22,22 @@ const RouteAnalyzer = ({ files, onRoutesAnalyzed, systemAnalysis }: RouteAnalyze
 
   useEffect(() => {
     if (files.length > 0) {
-      // If we have system analysis results, use those routes
-      if (systemAnalysis && systemAnalysis.routing) {
+      if (systemAnalysis?.routing) {
         setAnalyzedRoutes(systemAnalysis.routing.routes);
         const reactRoutes = convertToReactRoutes(systemAnalysis.routing.routes);
         setConvertedRoutes(reactRoutes);
-        
-        // Calculate complexity from systemAnalysis data
         calculateComplexityAndWarnings(systemAnalysis.routing);
         onRoutesAnalyzed(systemAnalysis.routing.routes);
       } else {
-        // Fall back to direct analysis
         const routes = analyzeNextJsRoutes(files);
         const reactRoutes = convertToReactRoutes(routes);
         setAnalyzedRoutes(routes);
         setConvertedRoutes(reactRoutes);
-        
-        // Generate complexity scores and warnings for each route
         calculateComplexityAndWarnings({
           routes,
-          dynamicRoutes: routes.filter(r => r.isDynamic).length, 
+          dynamicRoutes: routes.filter(r => r.isDynamic).length,
           complexRoutes: routes.filter(r => r.path.includes('[') && (r.path.includes('...') || r.path.split('/').filter(p => p.includes('[')).length > 1)).length
         });
-        
         onRoutesAnalyzed(routes);
       }
     }
@@ -55,17 +48,14 @@ const RouteAnalyzer = ({ files, onRoutesAnalyzed, systemAnalysis }: RouteAnalyze
     const routeWarnings: {[key: string]: string[]} = {};
     
     routing.routes.forEach((route) => {
-      // Simple complexity calculation based on route features
       let score = 0;
       
-      // Adjust score based on route characteristics
       if (route.isDynamic) score += 2;
       if (route.params && route.params.length > 1) score += route.params.length;
-      if (route.path.includes('[[')) score += 5; // Optional catch-all route
+      if (route.path.includes('[[')) score += 5;
       
       complexity[route.path] = score;
       
-      // Generate warnings for complex patterns
       const warnings: string[] = [];
       
       if (route.path.includes('[[') && route.path.includes(']]')) {
