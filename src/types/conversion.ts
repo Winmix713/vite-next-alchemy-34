@@ -1,3 +1,4 @@
+
 export interface ConversionOptions {
   useReactRouter: boolean;
   convertApiRoutes: boolean;
@@ -19,11 +20,36 @@ export interface ConversionState {
   };
   originalCode?: string;
   convertedCode?: string;
-  conversionResult?: any;
+  conversionResult?: ConversionResult;
   conversionError?: string;
+  systemAnalysis?: any;
 }
 
 export interface ConversionContextType {
   state: ConversionState;
   dispatch: (action: any) => void;
+}
+
+export interface ConversionResult {
+  success: boolean;
+  files: {
+    original: string;
+    converted: string;
+    path: string;
+  }[];
+  stats: {
+    totalFiles: number;
+    convertedFiles: number;
+    conversionRate: number;
+    errors: number;
+    warnings: number;
+  };
+  errors: {
+    file: string;
+    message: string;
+  }[];
+  warnings: {
+    file: string;
+    message: string;
+  }[];
 }

@@ -3,6 +3,9 @@ import { useState, useEffect } from "react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { performSystemAnalysis } from "@/services/analyzers/systemValidator";
+import { SystemAnalysisResult } from "@/types/analyzer";
+import { toast } from "sonner";
 
 interface ProjectAnalyzerProps {
   files: File[];
@@ -19,54 +22,88 @@ const ProjectAnalyzer = ({ files, onAnalysisComplete }: ProjectAnalyzerProps) =>
     dataFetching: 0,
     complexityScore: 0
   });
+  const [analysisResult, setAnalysisResult] = useState<SystemAnalysisResult | null>(null);
 
   useEffect(() => {
     if (!files.length) return;
     
     const totalFiles = files.length;
     let processedFiles = 0;
-    let nextComponents = 0;
-    let apiRoutes = 0;
-    let dataFetching = 0;
 
-    // Simulate analyzing files
+    // Analyze files
     const analyzeFiles = async () => {
-      for (const file of files) {
-        // In a real implementation, we would actually analyze the file content
-        setCurrentFile(file.name);
-        
-        // Simulate some analysis based on file names/paths
-        if (file.name.includes("page") || file.name.includes("Page")) {
-          nextComponents++;
-        }
-        if (file.name.includes("api")) {
-          apiRoutes++;
-        }
-        if (file.name.includes("getStaticProps") || file.name.includes("getServerSideProps")) {
-          dataFetching++;
+      try {
+        // Simulate some initial processing
+        for (let i = 0; i < Math.min(5, files.length); i++) {
+          setCurrentFile(files[i].name);
+          await new Promise(resolve => setTimeout(resolve, 100));
+          processedFiles++;
+          setProgress(Math.floor((processedFiles / (totalFiles + 10)) * 100));
         }
         
-        await new Promise(resolve => setTimeout(resolve, 100));
-        processedFiles++;
-        setProgress(Math.floor((processedFiles / totalFiles) * 100));
+        // Extract package.json if available
+        const packageJsonFile = files.find(file => file.name.endsWith('package.json'));
+        let packageJson = null;
+        
+        if (packageJsonFile) {
+          try {
+            const content = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = e => resolve(e.target?.result as string);
+              reader.onerror = reject;
+              reader.readAsText(packageJsonFile);
+            });
+            packageJson = JSON.parse(content);
+          } catch (error) {
+            console.error("Error parsing package.json:", error);
+          }
+        }
+        
+        // Perform deeper system analysis
+        setCurrentFile("Performing system analysis...");
+        const result = await performSystemAnalysis(files, packageJson);
+        setAnalysisResult(result);
+        
+        // Convert result to compatible format for other components
+        const compatibleResults = {
+          totalFiles: result.codebase.totalFiles,
+          nextComponents: result.components.totalComponents,
+          apiRoutes: result.codebase.apiRoutes,
+          dataFetching: (
+            (result.codebase.nextjsFeatureUsage['getServerSideProps'] || 0) + 
+            (result.codebase.nextjsFeatureUsage['getStaticProps'] || 0)
+          ),
+          complexityScore: result.readiness.score
+        };
+        
+        setStats(compatibleResults);
+        setProgress(100);
+        
+        // Pass results back to parent
+        onAnalysisComplete({
+          ...compatibleResults,
+          systemAnalysisResult: result
+        });
+        
+        // Show toast message with complexity info
+        const complexityCategory = result.readiness.category;
+        const toastMessage = `Project analysis complete: ${complexityCategory} conversion complexity detected.`;
+        const toastType = complexityCategory === 'simple' ? 'success' : 
+                         complexityCategory === 'moderate' ? 'info' : 'warning';
+        
+        if (toastType === 'success') {
+          toast.success(toastMessage);
+        } else if (toastType === 'info') {
+          toast.info(toastMessage);
+        } else {
+          toast.warning(toastMessage);
+        }
+        
+      } catch (error) {
+        console.error("Analysis error:", error);
+        toast.error(`Analysis error: ${error instanceof Error ? error.message : String(error)}`);
+        setProgress(100); // Ensure progress completes even on error
       }
-
-      // Calculate complexity score (0-100)
-      const complexity = Math.min(
-        100,
-        Math.floor((nextComponents * 2 + apiRoutes * 3 + dataFetching * 4) / totalFiles * 100)
-      );
-
-      const results = {
-        totalFiles,
-        nextComponents,
-        apiRoutes,
-        dataFetching,
-        complexityScore: complexity
-      };
-
-      setStats(results);
-      onAnalysisComplete(results);
     };
 
     analyzeFiles();
@@ -114,12 +151,12 @@ const ProjectAnalyzer = ({ files, onAnalysisComplete }: ProjectAnalyzerProps) =>
             <span className="text-sm">Complexity Score</span>
             <div>
               <Badge variant={
-                stats.complexityScore < 30 ? "outline" : 
-                stats.complexityScore < 60 ? "secondary" : 
+                stats.complexityScore > 70 ? "outline" : 
+                stats.complexityScore > 40 ? "secondary" : 
                 "destructive"
               }>
-                {stats.complexityScore < 30 ? "Easy" : 
-                 stats.complexityScore < 60 ? "Moderate" : 
+                {stats.complexityScore > 70 ? "Easy" : 
+                 stats.complexityScore > 40 ? "Moderate" : 
                  "Complex"}
               </Badge>
             </div>
@@ -127,11 +164,22 @@ const ProjectAnalyzer = ({ files, onAnalysisComplete }: ProjectAnalyzerProps) =>
           <Progress 
             value={stats.complexityScore} 
             className={`h-2 ${
-              stats.complexityScore < 30 ? "bg-green-400" : 
-              stats.complexityScore < 60 ? "bg-yellow-400" : 
+              stats.complexityScore > 70 ? "bg-green-400" : 
+              stats.complexityScore > 40 ? "bg-yellow-400" : 
               "bg-red-400"
             }`}
           />
+          
+          {analysisResult && analysisResult.readiness.manualInterventionAreas.length > 0 && (
+            <div className="mt-4 text-xs text-amber-700">
+              <p className="font-medium">Areas requiring attention:</p>
+              <ul className="mt-1 space-y-1 ml-4">
+                {analysisResult.readiness.manualInterventionAreas.map((area, i) => (
+                  <li key={i} className="list-disc">{area}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </CardFooter>
     </Card>

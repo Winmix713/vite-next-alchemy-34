@@ -6,13 +6,15 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ChevronRight, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { SystemAnalysisResult, RoutingAnalysis } from "@/types/analyzer";
 
 interface RouteAnalyzerProps {
   files: File[];
   onRoutesAnalyzed: (routes: NextJsRoute[]) => void;
+  systemAnalysis?: SystemAnalysisResult;
 }
 
-const RouteAnalyzer = ({ files, onRoutesAnalyzed }: RouteAnalyzerProps) => {
+const RouteAnalyzer = ({ files, onRoutesAnalyzed, systemAnalysis }: RouteAnalyzerProps) => {
   const [analyzedRoutes, setAnalyzedRoutes] = useState<NextJsRoute[]>([]);
   const [convertedRoutes, setConvertedRoutes] = useState<any[]>([]);
   const [complexityScores, setComplexityScores] = useState<{[key: string]: number}>({});
@@ -20,57 +22,78 @@ const RouteAnalyzer = ({ files, onRoutesAnalyzed }: RouteAnalyzerProps) => {
 
   useEffect(() => {
     if (files.length > 0) {
-      const routes = analyzeNextJsRoutes(files);
-      const reactRoutes = convertToReactRoutes(routes);
-      
-      // Calculate complexity scores and potential warnings for each route
-      const complexity: {[key: string]: number} = {};
-      const routeWarnings: {[key: string]: string[]} = {};
-      
-      routes.forEach((route, index) => {
-        // Simple complexity calculation based on route features
-        let score = 0;
+      // If we have system analysis results, use those routes
+      if (systemAnalysis && systemAnalysis.routing) {
+        setAnalyzedRoutes(systemAnalysis.routing.routes);
+        const reactRoutes = convertToReactRoutes(systemAnalysis.routing.routes);
+        setConvertedRoutes(reactRoutes);
         
-        // Adjust score based on route characteristics
-        if (route.isDynamic) score += 2;
-        if (route.params && route.params.length > 1) score += route.params.length;
-        if (route.path.includes('[[')) score += 5; // Optional catch-all route
+        // Calculate complexity from systemAnalysis data
+        calculateComplexityAndWarnings(systemAnalysis.routing);
+        onRoutesAnalyzed(systemAnalysis.routing.routes);
+      } else {
+        // Fall back to direct analysis
+        const routes = analyzeNextJsRoutes(files);
+        const reactRoutes = convertToReactRoutes(routes);
+        setAnalyzedRoutes(routes);
+        setConvertedRoutes(reactRoutes);
         
-        complexity[route.path] = score;
+        // Generate complexity scores and warnings for each route
+        calculateComplexityAndWarnings({
+          routes,
+          dynamicRoutes: routes.filter(r => r.isDynamic).length, 
+          complexRoutes: routes.filter(r => r.path.includes('[') && (r.path.includes('...') || r.path.split('/').filter(p => p.includes('[')).length > 1)).length
+        });
         
-        // Generate warnings for complex patterns
-        const warnings: string[] = [];
-        
-        if (route.path.includes('[[') && route.path.includes(']]')) {
-          warnings.push('Optional catch-all routes need special handling in React Router');
-        }
-        
-        if (route.params && route.params.some(p => p.includes('...'))) {
-          warnings.push('Catch-all routes use different syntax in React Router (*all)');
-        }
-        
-        if (route.layout) {
-          warnings.push('Layout routes need manual setup with Outlet in React Router');
-        }
-        
-        routeWarnings[route.path] = warnings;
-      });
-      
-      setAnalyzedRoutes(routes);
-      setConvertedRoutes(reactRoutes);
-      setComplexityScores(complexity);
-      setWarnings(routeWarnings);
-      onRoutesAnalyzed(routes);
+        onRoutesAnalyzed(routes);
+      }
     }
-  }, [files, onRoutesAnalyzed]);
+  }, [files, systemAnalysis, onRoutesAnalyzed]);
+
+  const calculateComplexityAndWarnings = (routing: RoutingAnalysis) => {
+    const complexity: {[key: string]: number} = {};
+    const routeWarnings: {[key: string]: string[]} = {};
+    
+    routing.routes.forEach((route) => {
+      // Simple complexity calculation based on route features
+      let score = 0;
+      
+      // Adjust score based on route characteristics
+      if (route.isDynamic) score += 2;
+      if (route.params && route.params.length > 1) score += route.params.length;
+      if (route.path.includes('[[')) score += 5; // Optional catch-all route
+      
+      complexity[route.path] = score;
+      
+      // Generate warnings for complex patterns
+      const warnings: string[] = [];
+      
+      if (route.path.includes('[[') && route.path.includes(']]')) {
+        warnings.push('Optional catch-all routes need special handling in React Router');
+      }
+      
+      if (route.params && route.params.some(p => p.includes('...'))) {
+        warnings.push('Catch-all routes use different syntax in React Router (*all)');
+      }
+      
+      if (route.layout) {
+        warnings.push('Layout routes need manual setup with Outlet in React Router');
+      }
+      
+      routeWarnings[route.path] = warnings;
+    });
+    
+    setComplexityScores(complexity);
+    setWarnings(routeWarnings);
+  };
 
   const getComplexityBadge = (score: number) => {
     if (score < 2) {
-      return <Badge variant="outline" className="bg-green-50">Egyszerű</Badge>;
+      return <Badge variant="outline" className="bg-green-50">Simple</Badge>;
     } else if (score < 5) {
-      return <Badge variant="secondary" className="bg-yellow-50">Közepes</Badge>;
+      return <Badge variant="secondary" className="bg-yellow-50">Moderate</Badge>;
     } else {
-      return <Badge variant="secondary" className="bg-red-50 text-red-600">Komplex</Badge>;
+      return <Badge variant="secondary" className="bg-red-50 text-red-600">Complex</Badge>;
     }
   };
 
@@ -96,9 +119,9 @@ const RouteAnalyzer = ({ files, onRoutesAnalyzed }: RouteAnalyzerProps) => {
                     {getComplexityBadge(complexityScores[route.path] || 0)}
                   </div>
                 </div>
-                {route.hasParams && (
+                {route.params && route.params.length > 0 && (
                   <div className="mt-2 text-sm text-gray-500">
-                    Parameters: {route.params?.join(', ')}
+                    Parameters: {route.params.join(', ')}
                   </div>
                 )}
                 {warnings[route.path] && warnings[route.path].length > 0 && (

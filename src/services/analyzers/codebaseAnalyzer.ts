@@ -1,5 +1,5 @@
 
-import { CodebaseAnalysis } from '@/types/analyzer';
+import { CodebaseAnalysis, ComponentAnalysis } from '@/types/analyzer';
 import { analyzeCodeStructure } from '../astTransformer';
 
 export async function analyzeCodebase(files: File[]): Promise<CodebaseAnalysis> {
@@ -13,7 +13,11 @@ export async function analyzeCodebase(files: File[]): Promise<CodebaseAnalysis> 
     'next/image': 0,
     'next/link': 0,
     'next/head': 0,
-    'next/router': 0
+    'next/router': 0,
+    'getServerSideProps': 0,
+    'getStaticProps': 0,
+    'getStaticPaths': 0,
+    'useRouter': 0
   };
 
   for (const file of files) {
@@ -21,20 +25,19 @@ export async function analyzeCodebase(files: File[]): Promise<CodebaseAnalysis> 
     
     if (fileName.endsWith('.js') || fileName.endsWith('.jsx')) jsFiles++;
     else if (fileName.endsWith('.ts') || fileName.endsWith('.tsx')) tsFiles++;
-    else if (fileName.endsWith('.css')) cssFiles++;
+    else if (fileName.endsWith('.css') || fileName.endsWith('.scss')) cssFiles++;
     
-    if (fileName.includes('/api/')) apiRoutes++;
+    if (fileName.includes('/api/') || fileName.includes('\\api\\')) apiRoutes++;
     
     const content = await readFileContent(file);
     
     if (fileName.endsWith('.jsx') || fileName.endsWith('.tsx')) {
       try {
-        // Use simplified analysis that doesn't rely on AST
         const analysis = analyzeCodeStructure(content);
         reactComponents += analysis.components.length;
         hooks += analysis.hooks.length;
         
-        // Simple feature detection using string matching
+        // Feature detection using string matching
         for (const feature of Object.keys(nextjsFeatureUsage)) {
           if (content.includes(feature)) {
             nextjsFeatureUsage[feature]++;
@@ -55,6 +58,65 @@ export async function analyzeCodebase(files: File[]): Promise<CodebaseAnalysis> 
     cssFiles,
     apiRoutes,
     nextjsFeatureUsage
+  };
+}
+
+export async function analyzeComponents(files: File[]): Promise<ComponentAnalysis> {
+  let totalComponents = 0;
+  let nextjsSpecificComponents = 0;
+  let pureReactComponents = 0;
+  let componentsWithDataFetching = 0;
+  let componentsWithRouting = 0;
+
+  for (const file of files) {
+    const fileName = file.name.toLowerCase();
+    
+    if (fileName.endsWith('.jsx') || fileName.endsWith('.tsx')) {
+      const content = await readFileContent(file);
+      
+      try {
+        const analysis = analyzeCodeStructure(content);
+        totalComponents += analysis.components.length;
+        
+        // Check for Next.js specific imports
+        if (content.includes('next/') ||
+            content.includes('getServerSideProps') ||
+            content.includes('getStaticProps') ||
+            content.includes('getStaticPaths')) {
+          nextjsSpecificComponents++;
+        } else {
+          pureReactComponents++;
+        }
+        
+        // Check for data fetching
+        if (content.includes('getServerSideProps') ||
+            content.includes('getStaticProps') ||
+            content.includes('getStaticPaths') ||
+            content.includes('useQuery') ||
+            content.includes('useSWR') ||
+            content.includes('fetch(')) {
+          componentsWithDataFetching++;
+        }
+        
+        // Check for routing
+        if (content.includes('useRouter') ||
+            content.includes('next/router') ||
+            content.includes('next/link') ||
+            content.includes('next/navigation')) {
+          componentsWithRouting++;
+        }
+      } catch (error) {
+        console.error(`Error analyzing components in ${fileName}:`, error);
+      }
+    }
+  }
+
+  return {
+    totalComponents,
+    nextjsSpecificComponents,
+    pureReactComponents,
+    componentsWithDataFetching,
+    componentsWithRouting
   };
 }
 
