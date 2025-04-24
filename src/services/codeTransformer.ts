@@ -12,18 +12,24 @@ const allTransformationRules: TransformationRule[] = [
 
 export function transformCode(sourceCode: string): TransformResult {
   const appliedTransformations: string[] = [];
+  const changes: string[] = [];
+  const warnings: string[] = [];
   let transformedCode = sourceCode;
 
   for (const rule of allTransformationRules) {
     if (rule.pattern.test(transformedCode)) {
+      const originalCode = transformedCode;
       transformedCode = transformedCode.replace(rule.pattern, rule.replacement as any);
       appliedTransformations.push(rule.description);
+      changes.push(`Applied ${rule.description}`);
     }
   }
 
   return {
     transformedCode,
-    appliedTransformations
+    appliedTransformations,
+    changes,
+    warnings
   };
 }
 

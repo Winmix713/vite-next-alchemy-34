@@ -1,4 +1,4 @@
-import { NextJsRoute } from './route';
+import type { NextJsRoute } from './route';
 
 export interface AnalyzerComponent {
   name: string;
@@ -68,4 +68,4 @@ export interface SystemAnalysisResult {
   validation: ValidationResult;
 }
 
-export { NextJsRoute };
+export type { NextJsRoute };

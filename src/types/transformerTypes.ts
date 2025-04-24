@@ -13,22 +13,3 @@ export interface TransformResult {
   changes: string[];
   warnings: string[];
 }
-
-export interface ComponentTransformResult {
-  name: string;
-  originalImport: string;
-  newImport: string;
-  usageTransformations: {
-    original: string;
-    transformed: string;
-  }[];
-}
-
-export interface RouteTransformResult {
-  originalPath: string;
-  newPath: string;
-  parameterChanges: {
-    original: string;
-    transformed: string;
-  }[];
-}

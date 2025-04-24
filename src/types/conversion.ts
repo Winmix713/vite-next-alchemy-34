@@ -1,6 +1,4 @@
 
-import { NextJsRoute } from './route';
-
 export interface ConversionOptions {
   useReactRouter: boolean;
   convertApiRoutes: boolean;
@@ -9,18 +7,6 @@ export interface ConversionOptions {
   updateDependencies: boolean;
   preserveTypeScript: boolean;
   handleMiddleware: boolean;
-}
-
-export interface ConversionProgress {
-  progress: number; // 0-100
-  message: string;
-}
-
-export interface ConversionError {
-  file: string;
-  message: string;
-  line?: number;
-  column?: number;
 }
 
 export interface ConversionResult {
@@ -38,6 +24,18 @@ export interface ConversionResult {
   errors: ConversionError[];
   warnings: string[];
   conversionTime: number;
+}
+
+export interface ConversionError {
+  file: string;
+  message: string;
+  line?: number;
+  column?: number;
+}
+
+export interface ConversionProgress {
+  progress: number;
+  message: string;
 }
 
 export interface RouteConversionResult {

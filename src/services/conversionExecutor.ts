@@ -1,7 +1,4 @@
-
-import { ConversionOptions } from '@/types/conversion';
-import { transformWithAst } from './astTransformer';
-import { ConversionState } from '@/types/conversion';
+import { ConversionOptions, ConversionResult } from '@/types/conversion';
 
 interface ConversionResult {
   success: boolean;
@@ -20,7 +17,6 @@ interface ConversionStats {
 }
 
 export class ConversionExecutor {
-  private options: ConversionOptions;
   private files: File[];
   private progress: number = 0;
   private progressCallback?: (progress: number, message: string) => void;

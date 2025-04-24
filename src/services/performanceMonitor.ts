@@ -234,6 +234,15 @@ export class PerformanceMonitor {
         this.webVitals.fcp = entry.startTime;
       }
     });
+
+    const performanceObserver = new PerformanceObserver((entries) => {
+      entries.getEntries().forEach(entry => {
+        if (entry.entryType === 'first-input' && entry instanceof PerformanceEventTiming) {
+          const value = entry.processingStart ? entry.processingStart - entry.startTime : entry.duration;
+          this.webVitals.fid = value;
+        }
+      });
+    });
   }
   
   /**

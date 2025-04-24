@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 import { toast } from "sonner";
-import ProjectStats from "./ProjectStats";
-import ConversionOptions from "./ConversionOptions";
-import CodePreviewTabs from "./CodePreviewTabs";
-import ConversionProgress from "./ConversionProgress";
-import { ConversionOptions as ConversionOptionsType } from "@/types/conversion";
+import ProjectStats from "./dashboard/ProjectStats";
+import ConversionOptions from "./dashboard/ConversionOptions";
+import CodePreviewTabs from "./dashboard/CodePreviewTabs";
+import ConversionProgress from "./dashboard/ConversionProgress";
+import { ConversionOptions as ConversionOptionsType, ConversionResult } from "@/types/conversion";
 import { ConversionExecutor } from "@/services/conversionExecutor";
 import { useConversion } from "@/context/ConversionContext";
 
@@ -126,4 +125,3 @@ const ConversionDashboard = ({
 };
 
 export default ConversionDashboard;
-
